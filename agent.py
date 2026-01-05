@@ -2,11 +2,17 @@ from crewai import Agent, Task, Crew, LLM
 from dotenv import load_dotenv
 from text_extractor import extract_text_from_pdf
 import os
-
+import json
+import re
+import glob
 
 load_dotenv()
 
-text = extract_text_from_pdf("03_Professional CV Resume Template.pdf")
+file_path = r"D:\AI Projects\ReadyMinds\Auto-Jobs-Bot\resumes\TanmayBuradkarResume.pdf"
+
+json_path = os.path.basename(file_path).replace(".pdf", ".json")
+
+text = extract_text_from_pdf(file_path)
 
 llm = LLM(
     model="gemini/gemini-2.5-flash",
@@ -28,11 +34,18 @@ Do not include explanations or additional text.
 
 resume_analysis_task = Task(
     description=f"""
-You MUST output ONLY valid JSON and nothing else.
+You MUST return ONLY a valid JSON object.
+NO markdown, NO explanations, NO comments.
 
-Required JSON schema:
+Rules:
+- If a field is missing, return null.
+- experience_years must be a NUMBER.
+- skills must be normalized (e.g., "Python", "FastAPI", "LLMs").
+- search_keywords must be optimized for job portals (LinkedIn, Indeed).
+
+JSON Schema:
 {{
-        "role": string | null,
+  "role": string | null,
   "skills": [string],
   "experience_years": number | null,
   "seniority": "Intern" | "Junior" | "Mid" | "Senior" | null,
@@ -40,8 +53,7 @@ Required JSON schema:
   "search_keywords": [string]
 }}
 
-Here is the resume text:
-
+Resume Text:
 {text}
 """,
     agent=resume_analyzer_agent,
@@ -55,4 +67,13 @@ crew = Crew(agents=[resume_analyzer_agent], tasks=[resume_analysis_task])
 
 
 results = crew.kickoff()
-print(results)
+
+
+raw_output = results.raw
+
+json_str = re.search(r"\{.*\}", raw_output, re.DOTALL).group()
+parsed_output = json.loads(json_str)
+print(json.dumps(parsed_output, indent=2))
+
+with open(rf"resumes_jsons/{json_path}", "w") as f:
+    json.dump(parsed_output, f, indent=2)

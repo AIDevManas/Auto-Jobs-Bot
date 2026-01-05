@@ -7,6 +7,7 @@ def extract_text_from_pdf(file_path):
         text = ""
         for page in pdf.pages:
             text += page.extract_text()
-    cleaned_text = re.sub(r"[^a-zA-Z0-9\s]", "", text).lower()
+    text = re.sub(r"[^\w\s\+\.\-@,/]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
 
-    return cleaned_text
+    return text
